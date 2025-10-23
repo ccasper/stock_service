@@ -17,6 +17,8 @@ This is an excellent fully running scaffolding / skeleton to build your own gola
 - The log files will be viewed at `tail -f /var/log/stock.log`
 - The systemd log for stock can be read by: `journalctl -u stock` or tailed by adding `-f`
 - This service runs on port 8080 for all interfaces by default. This can be configured in the build.sh file.
+- The `build.sh` is located in the `cmd/stock` folder because the root hierarchy could be used by multiple golang services in your `cmd/proxy`,`cmd/stock`,`cmd/auth` system that each would likely have unique build.sh needs.
+- For shared libraries across services, put them in `internal/<package>/<go files>`
 
 # Screenshots of the service running:
 
@@ -37,5 +39,8 @@ go run ./cmd/stock
 ``` bash
 SERVER=myfqdn or IP address
 
-./cmd/stock/build.sh && scp -r cmd/stock/stock_1.0.0.deb ${SERVER?}: && ssh ${SERVER?} "sudo apt-get -y remove stock && sudo dpkg -i stock_1.0
-.0.deb"```
+./cmd/stock/build.sh && scp -r cmd/stock/stock_1.0.0.deb ${SERVER?}: && 
+ssh ${SERVER?} "sudo bash -c 'apt-get -y remove stock && dpkg -i stock_1.0.0.deb && apt-get install -f'"
+```
+
+- We call `apt-get install -f` at the end to get any missing deb dependencies.

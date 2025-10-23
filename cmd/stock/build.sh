@@ -114,7 +114,7 @@ PREV_PWD="$(pwd)"
 cd "${ROOT}"
 for path in $SOURCES; do
   if [[ -e "$path" ]]; then
-    echo "Adding files from ${ROOT}/$path to $INCLUDE_LIST..."
+    echo "  - Adding files from ${ROOT}/$path to $INCLUDE_LIST..."
     find $path -type d -name "_todelete" -prune -o -type f -name "*.go" -print >> "$INCLUDE_LIST"
     find $path -type d -name "_todelete" -prune -o -type f -name "*.sh" -print >> "$INCLUDE_LIST"
     find $path -type d -name "_todelete" -prune -o -type f -name "*.py" -print >> "$INCLUDE_LIST"
@@ -247,6 +247,7 @@ fi
 # (Optional) Set ownership of service files or directories
 chown -R "${USER}:${USER}" /opt/${NAME}/data
 
+# Enable and start the service
 systemctl daemon-reload
 systemctl enable ${NAME}.service
 systemctl start ${NAME}.service
@@ -278,6 +279,11 @@ cat > "${DEBIAN_DIR}/prerm" << EOF
 #!/bin/bash
 set -e
 
+# Stop and disable the service
+systemctl disable ${NAME}.service
+systemctl stop ${NAME}.service
+systemctl daemon-reload
+
 # The argument is either "purge" or "remove".
 if [ "$1" = "purge" ]; then
     echo "Package is being purged (full removal)."
@@ -299,13 +305,11 @@ if command -v ufw >/dev/null 2>&1; then
     ufw reload
 fi
 
-systemctl disable ${NAME}.service
-systemctl stop ${NAME}.service
-systemctl daemon-reload
-
 exit 0
 EOF
 chmod 755 ${DEBIAN_DIR}/prerm
+
+
 
 # Create control file
 cat > "${DEBIAN_DIR}/control" << EOF
