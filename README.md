@@ -21,6 +21,10 @@ This is an excellent fully running scaffolding / skeleton to build your own gola
 
 # Instructions
 
+## Run locally
+
+go run ./cmd/stock
+
 ## Install on cloud/remote SSH machine
 
 ``` bash
