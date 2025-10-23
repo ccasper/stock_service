@@ -5,11 +5,18 @@ A golang stock service that can run on a headless server. This includes building
 
 This is an excellent fully running scaffolding / skeleton to build your own golang application on.
 
-- Creates debian packages that run on arm64 and amd64 (Works on Oracle ARM free-tier, Google Cloud, Vultr, etc)
-- Creates source archives and carries it with the binary for understanding what code is running on the server.
+- Creates a debian package that run on both arm64 and amd64 (Works on Oracle ARM free-tier, Google Cloud, Vultr, etc)
+  - It builds both binaries and packages them together with a run wrapper for selecting the architecture.
+  - Service files are placed in `/opt/stock/`, and ticker caching (per hour) is stored in `/opt/stock/data`.
+    - Some installed configurations, logrotate and systemd are installed in /etc
+    - `apt-get --purge remove stock` will remove all files related to this package, including the data/cache and logs, as if the package was never installed.
+- Creates a source archive that is within the deb package in `/opt/stock/src` for understanding what code is running on the server.
 - Has versioning in a golang file that the build scripts use so the main file can also know it's version.
 - Creates the necessary ufw, systemd, logrotate files to make the service automatically start and reload.
 - Uses systemd watchdog to ensure the service doesn't get stuck.
+- The log files will be viewed at `tail -f /var/log/stock.log`
+- The systemd log for stock can be read by: `journalctl -u stock` or tailed by adding `-f`
+- This service runs on port 8080 on all ports by default. This can be configured in the build.sh file.
 
 # Screenshots of the service running:
 
