@@ -16,7 +16,7 @@ This is an excellent fully running scaffolding / skeleton to build your own gola
 - Uses systemd watchdog to ensure the service doesn't get stuck.
 - The log files will be viewed at `tail -f /var/log/stock.log`
 - The systemd log for stock can be read by: `journalctl -u stock` or tailed by adding `-f`
-- This service runs on port 8080 on all ports by default. This can be configured in the build.sh file.
+- This service runs on port 8080 for all interfaces by default. This can be configured in the build.sh file.
 
 # Screenshots of the service running:
 
