@@ -10,7 +10,7 @@ import (
 
 	g "maragu.dev/gomponents"
 
-	// Importing this as '.' is intentional for cleaner HTML code.
+	// Importing this as '.' is intentional for cleaner HTML like code.
 	. "maragu.dev/gomponents/html"
 )
 
