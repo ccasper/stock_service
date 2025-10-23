@@ -16,11 +16,6 @@
 # all this work even if we're run from a different location.
 MAIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# This is the root prefix based on MAIN_DIR of this build.sh that has all the source code SOURCES under it, and usually a go.mod.
-# WHY? The source archive paths will be relative to this.
-ROOT="../.."
-
-
 # Ensure version.go exists
 version_file="$MAIN_DIR/version.go"
 if [[ ! -f "$version_file" ]]; then
@@ -31,6 +26,14 @@ fi
 # Parse constants from version.go
 NAME=$(grep -E '^const[[:space:]]+NAME[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
 VERSION=$(grep -E '^const[[:space:]]+VERSION[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
+ROOT=$(grep -E '^const[[:space:]]+ROOT[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
+SOURCES=$(grep -E '^const[[:space:]]+SOURCES[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
+
+if [[ -z "$NAME" || -z "$VERSION" || -z "$SOURCES" ]]; then
+  echo "Error: could not parse NAME, VERSION, SOURCES from '$version_file'." >&2
+  exit 1
+fi
+
 
 ARCHITECTURE="all" # because we support multiple architectures in one package
 MAINTAINER="user <user@gmail.com>"
@@ -73,12 +76,6 @@ echo "Version file: $version_file"
 # Parse NAME and VERSION from version.go
 NAME=$(grep -E '^const[[:space:]]+NAME[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
 VERSION=$(grep -E '^const[[:space:]]+VERSION[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
-SOURCES=$(grep -E '^const[[:space:]]+SOURCES[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
-
-if [[ -z "$NAME" || -z "$VERSION" || -z "$SOURCES" ]]; then
-  echo "Error: could not parse NAME, VERSION, SOURCES from '$version_file'." >&2
-  exit 1
-fi
 
 if [[ "$ROOT" != /* ]]; then
   # ROOT is relative, make it an absolute path first
@@ -158,9 +155,9 @@ cd /opt/${NAME}
 
 ARCH=\$(uname -m)
 if [[ "\$ARCH" == "x86_64" ]]; then
-    exec /opt/${NAME}/bin/${NAME}-amd64 --port=$PORT --data=/opt/${NAME}/data
+    exec /opt/${NAME}/bin/${NAME}-amd64 --port=$PORT
 elif [[ "\$ARCH" == "aarch64" ]]; then
-    exec /opt/${NAME}/bin/${NAME}-arm64 --port=$PORT --data=/opt/${NAME}/data
+    exec /opt/${NAME}/bin/${NAME}-arm64 --port=$PORT
 else
     echo "Unsupported architecture: \$ARCH"
     exit 1

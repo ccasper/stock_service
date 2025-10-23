@@ -1,6 +1,7 @@
 package main
 
 import (
+	common "app/internal/common"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -331,7 +332,7 @@ func buildMetricCardInformation(name string, value *float64, isPercent bool) *Me
 		valueStr = fmt.Sprintf("%.2f%%", *value*100)
 	} else {
 		// for large numbers (marketcap, ev, fcf) show compact formatting
-		valueStr = formatLargeNumber(*value)
+		valueStr = common.FormatLargeNumber(*value)
 	}
 	color, reason := getColorAndReasonForMetric(name, *value)
 	return &Metric{Name: name, Value: valueStr, Color: color, Reason: reason}
