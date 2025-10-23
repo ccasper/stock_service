@@ -75,20 +75,17 @@ NAME=$(grep -E '^const[[:space:]]+NAME[[:space:]]*=' "$version_file" | sed -E 's
 VERSION=$(grep -E '^const[[:space:]]+VERSION[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
 SOURCES=$(grep -E '^const[[:space:]]+SOURCES[[:space:]]*=' "$version_file" | sed -E 's/.*"([^"]+)".*/\1/')
 
-if [[ -z "$NAME" || -z "$VERSION" || -z "$SOURCES" || -z "$ROOT" ]]; then
-  echo "Error: could not parse NAME, VERSION, ROOT or SOURCES from '$version_file'." >&2
+if [[ -z "$NAME" || -z "$VERSION" || -z "$SOURCES" ]]; then
+  echo "Error: could not parse NAME, VERSION, SOURCES from '$version_file'." >&2
   exit 1
 fi
 
-# Get the relative path of MAIN_DIR from ROOT prefix
-if [[ "$ROOT" = /* ]]; then
-  # ROOT is absolute, remove it as prefix
-  REL_MAIN_DIR="${MAIN_DIR#$ROOT}"
-else
-  # ROOT is relative, get absolute path first
-  ABS_ROOT="$(realpath "${MAIN_DIR}/${ROOT}")"
-  REL_MAIN_DIR="${MAIN_DIR#$ABS_ROOT}"
+if [[ "$ROOT" != /* ]]; then
+  # ROOT is relative, make it an absolute path first
+  ROOT="$(realpath "${MAIN_DIR}/${ROOT}")"
 fi
+# Get the relative path of MAIN_DIR from ROOT prefix
+REL_MAIN_DIR="${MAIN_DIR#$ROOT}"
 
 # Optionally remove leading slash if it exists
 REL_MAIN_DIR="${REL_MAIN_DIR#/}"
@@ -97,6 +94,7 @@ echo "Parsed:"
 echo "  NAME    = $NAME"
 echo "  VERSION = $VERSION"
 echo "  SOURCES = $SOURCES"
+echo "  ROOT    = $ROOT"
 echo "  MAIN_DIR = $MAIN_DIR"
 echo "  REL_MAIN_DIR = $REL_MAIN_DIR"
 
