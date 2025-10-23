@@ -1,7 +1,7 @@
 # Stock Analysis Service
 This provides very rudimentary evaluation of a stock ticker.
 
-A golang stock service that can run on a headless server. This includes building, archiving, packaging, and running on a debian/ubuntu arm or amd server.
+A golang stock service that can run on a headless server. This includes building, archiving, packaging (into deb packages), and running on a debian/ubuntu arm or amd server
 
 This is an excellent fully running scaffolding / skeleton to build your own golang application on.
 
