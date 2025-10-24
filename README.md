@@ -14,6 +14,7 @@ This is an excellent fully running scaffolding / skeleton to build your own gola
 - Has versioning in a golang file that the build scripts use so the main file can also know it's version.
 - Creates the necessary ufw, systemd, logrotate files to make the service automatically start and reload.
 - Uses systemd watchdog to ensure the service doesn't get stuck.
+- Uses a separate health check port for verifying installation was successful.
 - The log files will be viewed at `tail -f /var/log/stock.log`
 - The systemd log for stock can be read by: `journalctl -u stock` or tailed by adding `-f`
 - This service runs on port 8080 for all interfaces by default. This can be configured in the build.sh file.
@@ -56,12 +57,12 @@ scp tools/safe-dpkg ${SERVER?}:
 ssh ${SERVER?} "sudo bash -c 'chown root:root safe-dpkg && chmod 755 safe-dpkg && mv safe-dpkg /usr/local/bin/safe-dpkg'"
 ```
 
-- Call `safe-dpkg stock_1.0.0.deb` instead of dpkg -i stock_1.0.0.deb. It will safely roll back to the previous good running package on install/watchdog failure (even if it has the same version name).
+- Call `safe-dpkg stock_1.0.0.deb` instead of apt-get -y remove stock ; dpkg -i stock_1.0.0.deb. It will also safely roll back to the previous good running package on install/health failure (even if it has the same version name).
 
   - This will store a copy of the deb file in `/var/cache/safe-dpkg` only if it's successful in installation and healthy.
+  - During install, it will remove the old package as needed.
   - On failure, it rolls back to the newest deb file in `/var/cache/safe-dpkg`.
-
-- If you don't have the dependencies installed, you'll need to call this twice, first time will get the dependencies, second time will install the binary.
+  - On dependency issues, it will automatically install the dependencies.
 
 ``` bash
 SERVER=myfqdn or IP address
