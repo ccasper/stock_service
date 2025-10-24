@@ -16,6 +16,11 @@
 # all this work even if we're run from a different location.
 MAIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+die() {
+    echo >&2 "$@"
+    exit 1
+}
+
 # Ensure version.go exists
 version_file="$MAIN_DIR/version.go"
 if [[ ! -f "$version_file" ]]; then
@@ -43,7 +48,7 @@ DESCRIPTION="Runs the appropriate binary for ${NAME} based on system architectur
 USER="stock"
 
 # Port to expose this binary on the server.
-PORT="8080"
+PORT="8082"
 
 if [[ -z "$NAME" || -z "$VERSION" ]]; then
   echo "Error: could not parse NAME, VERSION from '$version_file'." >&2
@@ -96,7 +101,7 @@ echo "  MAIN_DIR = $MAIN_DIR"
 echo "  REL_MAIN_DIR = $REL_MAIN_DIR"
 
 ARCHIVE_NAME="${NAME}-${VERSION}-${TIMESTAMP}.tgz"
-DEB_NAME="${NAME}-${VERSION}.deb"
+DEB_NAME="${NAME}_${VERSION}.deb"
 
 
 # Step 1: Archive all .go files recursively
@@ -142,7 +147,7 @@ touch "${BUILD_DIR}/opt/${NAME}/data/.storage"
 # Build the service
 cd "${SCRIPT_DIR}"
 
-env GOARCH=arm64 go build -o "$BIN_DIR/${NAME}-arm64" $MAIN_DIR
+env GOARCH=arm64 go build -o "$BIN_DIR/${NAME}-arm64" $MAIN_DIR || die "Unable to create"
 env GOARCH=amd64 go build -o "$BIN_DIR/${NAME}-amd64" $MAIN_DIR
 
 # Create runtime wrapper
@@ -151,13 +156,11 @@ cat > "${BIN_DIR}/${NAME}" << EOF
 VIP=\$(ip -o -4 addr show | awk '{print \$4}' | grep -oE '10\.100\.[0-9]+\.[0-9]+' | head -n 1)
 EIP=\$(ip route get 8.8.8.8 | awk '/src/ {print \$7}')
 
-cd /opt/${NAME}
-
 ARCH=\$(uname -m)
 if [[ "\$ARCH" == "x86_64" ]]; then
-    exec /opt/${NAME}/bin/${NAME}-amd64 --port=$PORT
+    exec /opt/${NAME}/bin/${NAME}-amd64 --port=$PORT --data=/opt/${NAME}/data
 elif [[ "\$ARCH" == "aarch64" ]]; then
-    exec /opt/${NAME}/bin/${NAME}-arm64 --port=$PORT
+    exec /opt/${NAME}/bin/${NAME}-arm64 --port=$PORT --data=/opt/${NAME}/data
 else
     echo "Unsupported architecture: \$ARCH"
     exit 1
@@ -232,16 +235,21 @@ set -e
 # Add UFW rule
 if command -v ufw >/dev/null 2>&1; then
     echo "Allowing ${NAME} service through UFW..."
-    ufw allow 8080/tcp comment "${NAME} service"
+    ufw allow $PORT/tcp comment "${NAME} service"
     ufw reload
 fi
 
 # Create system user if it doesn't exist
 if ! id -u "${USER}" >/dev/null 2>&1; then
     echo "Creating system user '${USER}'..."
-    useradd --system --no-create-home --shell /usr/sbin/nologin "${USER}"
+    useradd --system --shell /usr/sbin/nologin "${USER}"
 fi
-# (Optional) Set ownership of service files or directories
+mkdir -p /home/${USER}
+chown -R "${USER}:${USER}" /home/${USER}
+chmod -R 775 /home/${USER}
+
+# Set ownership of service files and directories
+chown -R root:root /opt/${NAME}
 chown -R "${USER}:${USER}" /opt/${NAME}/data
 
 # Enable and start the service
@@ -251,21 +259,30 @@ systemctl start ${NAME}.service
 
 # Wait up to N seconds for the service to be active
 TIMEOUT=30
-WAIT_INTERVAL=1
+INTERVAL=1
 elapsed=0
 
-while ! systemctl is-active --quiet "${NAME}.service"; do
-    if [ "$elapsed" -ge "$TIMEOUT" ]; then
-        echo "Service ${NAME} failed to start within $TIMEOUT seconds"
+PORT=$PORT
+check_healthy() {
+    echo "Checking curl -sf --connect-timeout 2 --max-time 5 http://localhost:$((PORT + 1))/health >/dev/null"
+    curl -sf --connect-timeout 2 --max-time 5 http://localhost:$((PORT + 1))/health >/dev/null
+}
+
+echo "Waiting up to \${TIMEOUT} seconds for ${NAME} service to send watchdog ping..."
+while true; do
+    if check_healthy; then
+        echo "$NAME is fully healthy after \${elapsed}s ✅"
+        break
+    fi
+
+    if [[ "\$ACTIVE" == "failed" || "\$elapsed" -ge "\$TIMEOUT" ]]; then
+        echo "$NAME failed to become healthy after \${elapsed}s ❌"
         exit 1
     fi
-    sleep $WAIT_INTERVAL
-    elapsed=$((elapsed + WAIT_INTERVAL))
+
+    sleep "\$INTERVAL"
+    elapsed=\$((elapsed + INTERVAL))
 done
-
-echo "Service ${NAME} is active."
-
-
 
 exit 0
 EOF
@@ -284,9 +301,11 @@ systemctl daemon-reload
 # The argument is either "purge" or "remove".
 if [ "$1" = "purge" ]; then
     echo "Package is being purged (full removal)."
-    rm -rf "/opt/${NAME}/data/*"
+    rm -rf "/opt/${NAME}/data/\*"
+    rm -rf "/home/${NAME}/\*
+    rm -rf "/home/${NAME}/.\*
     rm -f "/var/log/${NAME}"
-    rm -f "/var/log/${NAME}.log*"
+    rm -f "/var/log/${NAME}.log\*"
 fi
 
 # Delete system user if it exists
@@ -298,7 +317,7 @@ fi
 # Remove UFW rule before uninstall
 if command -v ufw >/dev/null 2>&1; then
     echo "Removing ${NAME} service rule from UFW..."
-    ufw delete allow 8080/tcp
+    ufw delete allow ${PORT}/tcp
     ufw reload
 fi
 
@@ -322,6 +341,6 @@ EOF
 
 
 # Build the package
-dpkg-deb --build "$BUILD_DIR" "$MAIN_DIR/${NAME}_${VERSION}.deb"
+dpkg-deb --build "$BUILD_DIR" "$MAIN_DIR/$DEB_NAME"
 
 echo "Package built: ${NAME}_${VERSION}.deb"

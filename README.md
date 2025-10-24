@@ -40,7 +40,39 @@ go run ./cmd/stock
 SERVER=myfqdn or IP address
 
 ./cmd/stock/build.sh && scp -r cmd/stock/stock_1.0.0.deb ${SERVER?}: && 
-ssh ${SERVER?} "sudo bash -c 'apt-get -y remove stock && dpkg -i stock_1.0.0.deb && apt-get install -f'"
+ssh ${SERVER?} "sudo bash -c 'apt-get -y remove stock ; dpkg -i stock_1.0.0.deb && apt-get install -f'"
 ```
 
 - We call `apt-get install -f` at the end to get any missing deb dependencies.
+
+## If you want rollback safe dpkg installation:
+
+- Copy tools/safe-dpkg on your service host server in /usr/local/bin
+
+``` bash
+SERVER=myfqdn or IP address
+
+scp tools/safe-dpkg ${SERVER?}:
+ssh ${SERVER?} "sudo bash -c 'chown root:root safe-dpkg && chmod 755 safe-dpkg && mv safe-dpkg /usr/local/bin/safe-dpkg'"
+```
+
+- Call `safe-dpkg stock_1.0.0.deb` instead of dpkg -i stock_1.0.0.deb. It will safely roll back to the previous good running package on install/watchdog failure (even if it has the same version name).
+
+  - This will store a copy of the deb file in `/var/cache/safe-dpkg` only if it's successful in installation and healthy.
+  - On failure, it rolls back to the newest deb file in `/var/cache/safe-dpkg`.
+
+- If you don't have the dependencies installed, you'll need to call this twice, first time will get the dependencies, second time will install the binary.
+
+``` bash
+SERVER=myfqdn or IP address
+
+./cmd/stock/build.sh && scp -r cmd/stock/stock_1.0.0.deb ${SERVER?}: && 
+ssh ${SERVER?} "sudo bash -c 'apt-get -y remove stock ; safe-dpkg stock_1.0.0.deb || apt-get install -f'"
+```
+
+## ARM64 warning
+
+Although all the tooling here works with ARM64, and the main binary and page will load, there are some unsolved technical issues with using chromedp (chromium/chrome headless) on ARM64 to fetch actual ticker data that have not been addressed.
+
+The current error is:
+`cmd_run.go:1400: WARNING: cannot create user data directory: cannot create snap home dir: mkdir`

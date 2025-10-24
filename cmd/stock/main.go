@@ -15,6 +15,8 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
+var g_dataDir string
+
 func renderMetricCard(m Metric) g.Node {
 	bgColor := map[string]string{
 		"green":  "bg-green-900 border-green-500",
@@ -305,14 +307,30 @@ func main() {
 	http.HandleFunc("/stock", stockHandler)
 	http.HandleFunc("/api/metrics", apiHandler)
 
-	port := flag.String("port", "8080", "port to listen on")
+	port := flag.Int64("port", 8080, "port to listen on")
 	ip := flag.String("ip", "", "ip to listen on")
+	flagDataDir := flag.String("data", "", "directory to store data")
 
 	// Parse command-line flags
 	flag.Parse()
 
-	log.Printf("Server starting on http://%s:%s", *ip, *port)
-	log.Fatal(http.ListenAndServe(*ip+":"+*port, nil))
+	g_dataDir = *flagDataDir
+
+	// Run the health check port.
+	healthPort := (*port) + 1
+	err := common.StartHealthServer(VERSION, fmt.Sprintf("%s:%d", *ip, healthPort))
+	if err != nil {
+		log.Printf("Error starting health server: %v", err)
+		log.Fatal(err)
+	}
+
+	log.Printf("Server starting on http://%s:%d", *ip, *port)
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", *ip, *port), nil)
+	if err != nil {
+		log.Printf("Error starting serving server: %v", err)
+		log.Fatal(err)
+	}
+
 }
 
 type Metric struct {

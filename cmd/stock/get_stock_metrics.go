@@ -19,7 +19,7 @@ import (
 func getStockMetrics(ticker string) (*Result, error) {
 	// Ensure cache dir exists. This is relative to the CWD, or
 	// WorkingDirectory=/opt/stock when launched via systemd.
-	cacheDir := "./data/stockdata"
+	cacheDir := filepath.Join(g_dataDir, "./stockdata")
 	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {
 		return nil, fmt.Errorf("could not create cache dir: %v", err)
 	}
@@ -47,15 +47,20 @@ func getStockMetrics(ticker string) (*Result, error) {
 
 	// Create temp directories for Chrome data.
 	// Required for the chrome/chromium headless request to work.
-	userDataDir := filepath.Join(os.TempDir(), fmt.Sprintf("chrome-user-data-%d", time.Now().UnixNano()))
+	userDataDir := filepath.Join(g_dataDir, fmt.Sprintf("chrome-user-data"))
+	//userDataDir := filepath.Join(g_dataDir, fmt.Sprintf("chrome-user-data-%d", time.Now().UnixNano()))
 	if err := os.MkdirAll(userDataDir, 0755); err != nil {
 		log.Fatal(err)
 	}
 
+	log.Printf("Running headless Chrome for %s with user data dir: %s\n", ticker, userDataDir)
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("user-data-dir", userDataDir),
+		chromedp.UserDataDir(userDataDir),
+		//chromedp.Flag("no-sandbox", true),
+		//chromedp.Flag("disable-setuid-sandbox", true),
 	)
 
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
